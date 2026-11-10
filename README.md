@@ -20,7 +20,7 @@ This repo is the opposite on purpose. Everything here is built in public, with t
 |---|---|
 | `site/` | The game. One self-contained HTML file, no build step, no tracking pixels. |
 | `n8n/` | The automations behind it, as n8n workflow exports. |
-| `assets/` | The Red Flag Protocol artwork. |
+| `assets/` | The Red Flag Protocol artwork. `flag-icon-1000.png` (big flag) is for small sizes: token icon, favicon, app icons. `flag-icon-1000-classic.png` and `flag-logo.jpg` (smaller flag) are for anywhere the art shows large. |
 
 ### site/index.html
 

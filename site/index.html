@@ -213,7 +213,7 @@ const CONFIG = {
   feeRecipientName: "",
   scannerUrl: "https://cryptoclaritycollective.com/defi-opportunities/",
   bookUrl: "https://learn.cryptoclaritycollective.com/products/the-6-billion-mistake",
-  newsletterUrl: "https://learn.cryptoclaritycollective.com",
+  newsletterUrl: "https://cryptoclaritycollective.com/checklist/?utm_source=12redflags&utm_medium=referral&utm_campaign=spot-the-flag",
   beehiivEmbedUrl: "",            // beehiiv embed iframe src, optional
   siteUrl: "https://12redflags.com", // public URL of this page, used in share text
   scoreWebhook: "https://automation.cnsplanet.net/webhook/spot-the-flag-score",               // optional n8n webhook URL to log anonymous scores
@@ -451,7 +451,7 @@ const CONFIG = {
 
     <div class="signup" id="signup">
       <h3>Watch what happens after launch</h3>
-      <p>The build, the bots, the copycats, the scam DMs. I'll report all of it in Crypto Clarity Weekly. Free.</p>
+      <p>The build, the bots, the copycats, the scam DMs. I'll report all of it in Crypto Clarity Weekly. Grab the free 12 Red Flags checklist and you're on the list. No credit card, nothing to pay.</p>
       <div id="signupSlot"></div>
       <div class="links" style="justify-content:center"><a id="bookLink" href="#" target="_blank" rel="noopener" style="color:#fff;border-color:#fff">Read The $6 Billion Mistake ↗</a></div>
     </div>
@@ -489,7 +489,7 @@ const CONFIG = {
     <div class="rbtns">
       <button class="btn btn-red" id="rShare">Copy my score to share</button>
       <button class="btn btn-ghost" id="rReview">Show me what I missed</button>
-      <a class="btn btn-ghost" href="#signup" id="rSignup">Get the free newsletter</a>
+      <a class="btn btn-ghost" href="#signup" id="rSignup">Get the free checklist</a>
       <button class="btn btn-ghost" id="rAgain">Play again</button>
     </div>
   </div>
@@ -692,7 +692,7 @@ for(let n=1;n<=12;n++){
 }
 $("scannerLink").href=CONFIG.scannerUrl;$("bookLink").href=CONFIG.bookUrl;
 if(CONFIG.beehiivEmbedUrl){const f=el("iframe");f.src=CONFIG.beehiivEmbedUrl;f.title="Subscribe to Crypto Clarity Weekly";f.loading="lazy";$("signupSlot").appendChild(f)}
-else{const a=el("a","Get Crypto Clarity Weekly","btn btn-red");a.href=CONFIG.newsletterUrl;a.target="_blank";a.rel="noopener";$("signupSlot").appendChild(a)}
+else{const a=el("a","Get the free 12 Red Flags checklist","btn btn-red");a.href=CONFIG.newsletterUrl;a.target="_blank";a.rel="noopener";$("signupSlot").appendChild(a)}
 
 render();
 </script>
