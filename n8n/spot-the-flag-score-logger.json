@@ -1,0 +1,97 @@
+{
+  "name": "Spot the Flag Score Logger",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "spot-the-flag-score",
+        "responseMode": "onReceived",
+        "options": {
+          "rawBody": true,
+          "allowedOrigins": "https://12redflags.com,https://www.12redflags.com"
+        }
+      },
+      "id": "b1f6a2d0-1111-4a1a-9a01-5f1a00000001",
+      "name": "Score Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        0
+      ],
+      "webhookId": "spot-the-flag-score"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse and validate one finished game. Junk or tampered payloads are dropped.\nconst out = [];\nfor (const item of $input.all()) {\n  let data = null;\n  const body = item.json.body;\n  if (body && typeof body === 'object' && 'score' in body) {\n    data = body;\n  } else if (typeof body === 'string') {\n    try { data = JSON.parse(body); } catch (e) {}\n  }\n  if (!data && item.binary && item.binary.data) {\n    try { data = JSON.parse(Buffer.from(item.binary.data.data, 'base64').toString('utf8')); } catch (e) {}\n  }\n  if (!data) continue;\n\n  const int = (v) => Number.isInteger(v) ? v : NaN;\n  const score = int(data.score);\n  const found = int(data.found);\n  const falseAlarms = int(data.falseAlarms);\n  const seconds = int(data.seconds);\n  const missed = Array.isArray(data.missed) ? data.missed : null;\n\n  const ok =\n    score >= 0 && score <= 1500 &&\n    found >= 0 && found <= 12 &&\n    falseAlarms >= 0 && falseAlarms <= 4 &&\n    seconds >= 0 && seconds <= 86400 &&\n    missed !== null &&\n    missed.length === 12 - found &&\n    missed.every(n => Number.isInteger(n) && n >= 1 && n <= 12) &&\n    new Set(missed).size === missed.length;\n  if (!ok) continue;\n\n  const received = new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour12: false });\n  out.push({ json: {\n    'Received': received,\n    'Score': score,\n    'Flags found': found,\n    'False alarms': falseAlarms,\n    'Seconds': seconds,\n    'Missed flags': missed.length ? ',' + missed.sort((a, b) => a - b).join(',') + ',' : '',\n    'Client time': typeof data.ts === 'string' ? data.ts.slice(0, 30) : ''\n  }});\n}\nreturn out;"
+      },
+      "id": "b1f6a2d0-1111-4a1a-9a01-5f1a00000002",
+      "name": "Validate Score",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        240,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Plays",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "b1f6a2d0-1111-4a1a-9a01-5f1a00000003",
+      "name": "Append to Plays",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        480,
+        0
+      ]
+    }
+  ],
+  "connections": {
+    "Score Webhook": {
+      "main": [
+        [
+          {
+            "node": "Validate Score",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Validate Score": {
+      "main": [
+        [
+          {
+            "node": "Append to Plays",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "id": "SpotFlagScoreLg1"
+}
