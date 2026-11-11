@@ -21,6 +21,7 @@ This repo is the opposite on purpose. Everything here is built in public, with t
 | `site/` | The game. One self-contained HTML file, no build step, no tracking pixels. |
 | `n8n/` | The automations behind it, as n8n workflow exports. |
 | `assets/` | The Red Flag Protocol artwork. `flag-icon-1000.png` (big flag) is for small sizes: token icon, favicon, app icons. `flag-icon-1000-classic.png` and `flag-logo.jpg` (smaller flag) are for anywhere the art shows large. |
+| `ops/` | The deploy script and cron schedule that publish `site/` to 12redflags.com. |
 
 ### site/index.html
 
@@ -34,6 +35,16 @@ The scam claims on the page are fake on purpose. Every card carries a "TRAINING 
 - **spot-the-flag-weekly-summary.json** reads the sheet every Monday morning and emails a summary: games played, average flags found, and the three most-missed flags.
 
 To use them in your own n8n: import each file, attach your own Google Sheets and Gmail credentials, and replace `YOUR_GOOGLE_SHEET_ID` and `you@example.com`. The sheet needs a tab called `Plays` with these headers in row 1: `Received`, `Score`, `Flags found`, `False alarms`, `Seconds`, `Missed flags`, `Client time`.
+
+## How the live site updates
+
+This repo is the source of truth for 12redflags.com. Every 5 minutes the server checks `main` for a new commit. When it finds one, it:
+
+1. Backs up the version that's live now
+2. Publishes the `site/` folder (nothing else in the repo goes live)
+3. Checks that the site still loads, and rolls back to the backup if it doesn't
+
+The commit that's live is always at [12redflags.com/version.txt](https://12redflags.com/version.txt). The script is in `ops/`.
 
 ## About $FLAG
 

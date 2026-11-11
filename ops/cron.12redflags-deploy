@@ -1,0 +1,3 @@
+# Publish github.com/CNS-hub/12redflags site/ to 12redflags.com on new commits
+SHELL=/bin/bash
+*/5 * * * * root /usr/local/sbin/12redflags-deploy.sh
