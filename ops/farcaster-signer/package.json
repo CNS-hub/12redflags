@@ -1,0 +1,1 @@
+{ "name": "12redflags-signer", "private": true, "type": "module", "dependencies": { "viem": "2.21.54", "qrcode-terminal": "0.12.0" } }
