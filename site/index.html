@@ -21,6 +21,9 @@
 <link rel="icon" type="image/png" sizes="192x192" href="/assets/favicon-192.png">
 <link rel="apple-touch-icon" href="/assets/apple-touch-icon.png">
 <meta name="theme-color" content="#0a0a0a">
+<!-- Farcaster mini app embed: a cast with this link shows a card and a Play button that opens the game in-feed -->
+<meta name="fc:miniapp" content='{"version":"1","imageUrl":"https://12redflags.com/assets/fc-embed.jpg","button":{"title":"Play Spot the Flag","action":{"type":"launch_frame","name":"Spot the Flag","url":"https://12redflags.com/","splashImageUrl":"https://12redflags.com/assets/fc-splash.png","splashBackgroundColor":"#0a0a0a"}}}'>
+<meta name="fc:frame" content='{"version":"1","imageUrl":"https://12redflags.com/assets/fc-embed.jpg","button":{"title":"Play Spot the Flag","action":{"type":"launch_frame","name":"Spot the Flag","url":"https://12redflags.com/","splashImageUrl":"https://12redflags.com/assets/fc-splash.png","splashBackgroundColor":"#0a0a0a"}}}'>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
 <style>
@@ -698,6 +701,9 @@ function shareText(){
 }
 $("rShare").onclick=async function(){
   const url=challengeUrl(),text=shareText()+" #SpotTheFlag";
+  if(window.fcSdk){ // inside Farcaster: open the cast composer with the challenge link embedded
+    try{await window.fcSdk.actions.composeCast({text:shareText(),embeds:[url]});return}catch(e){}
+  }
   if(navigator.share){
     try{await navigator.share({title:"Spot the Flag",text,url});return}
     catch(e){if(e&&e.name==="AbortError")return}
@@ -796,6 +802,21 @@ if(CONFIG.beehiivEmbedUrl){const f=el("iframe");f.src=CONFIG.beehiivEmbedUrl;f.t
 else{const a=el("a","Get the free 12 Red Flags checklist","btn btn-red");a.href=CONFIG.newsletterUrl;a.target="_blank";a.rel="noopener";$("signupSlot").appendChild(a)}
 
 render();
+
+/* ---------- FARCASTER MINI APP ----------
+   Only loads the Farcaster SDK when the page is running inside an app frame or webview,
+   so normal visitors never download it. ready() hides Farcaster's splash screen. */
+(function(){
+  const framed=(()=>{try{return window.self!==window.top}catch(e){return true}})();
+  if(!framed&&!window.ReactNativeWebView)return;
+  import("https://esm.sh/@farcaster/miniapp-sdk@0.4.0").then(async m=>{
+    const sdk=m.sdk||m.default;
+    if(!sdk||!(await sdk.isInMiniApp()))return;
+    window.fcSdk=sdk;
+    document.documentElement.classList.add("in-farcaster");
+    try{await sdk.actions.ready()}catch(e){}
+  }).catch(()=>{});
+})();
 
 /* ---------- COIN ANIMATION (skipped if the visitor prefers reduced motion) ---------- */
 (function(){
