@@ -1,4 +1,9 @@
 {
+  "accountAssociation": {
+    "header": "eyJmaWQiOjMzNTgzOTMsInR5cGUiOiJjdXN0b2R5Iiwia2V5IjoiMHg4YjEwMzE0ZTI4NkFhMThCMzUxRDRFNzhEQTMxYTIxNzdiYjFFMzQxIn0",
+    "payload": "eyJkb21haW4iOiIxMnJlZGZsYWdzLmNvbSJ9",
+    "signature": "yxC7PWfjXowo9JKAjYyAE+P+VdBVwhPc+DsZ1TjVmF0XVJzDq0x75YjVe5vhhp0TVE1yBGbDNMotcJYbri2TbRw="
+  },
   "miniapp": {
     "version": "1",
     "name": "Spot the Flag",
@@ -12,7 +17,13 @@
     "subtitle": "Find the 12 crypto red flags",
     "description": "A fake crypto project with 12 red flags hidden on the page. Find them all without tripping the decoys. Free scam training from Crypto Clarity Collective.",
     "primaryCategory": "education",
-    "tags": ["crypto", "scams", "security", "education", "game"],
+    "tags": [
+      "crypto",
+      "scams",
+      "security",
+      "education",
+      "game"
+    ],
     "tagline": "Can you spot all 12",
     "heroImageUrl": "https://12redflags.com/assets/og-image.jpg",
     "ogTitle": "Spot the Flag",
