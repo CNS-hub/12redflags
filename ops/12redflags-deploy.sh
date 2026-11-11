@@ -52,8 +52,9 @@ ROOT_MODE=$(stat -c '%a' "$DST"); ROOT_GROUP=$(stat -c '%G' "$DST")
 
 # Copy site/ into the web root. -rlt only: no owner/group/perm changes from the source.
 # Keep server-only files: .htaccess, Let's Encrypt challenges, version.txt.
+# .well-known/farcaster.json comes from the repo; only acme-challenge/ is server-only.
 rsync -rlt --delete \
-  --exclude '.htaccess' --exclude '.well-known/' --exclude 'version.txt' \
+  --exclude '.htaccess' --exclude '.well-known/acme-challenge/' --exclude 'version.txt' \
   "$SRC/site/" "$DST/" || { log "ERROR rsync failed for $NEW"; exit 1; }
 
 # Fix ownership and modes of the contents only (never the web root itself).

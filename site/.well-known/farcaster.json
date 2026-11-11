@@ -1,0 +1,22 @@
+{
+  "miniapp": {
+    "version": "1",
+    "name": "Spot the Flag",
+    "homeUrl": "https://12redflags.com/",
+    "iconUrl": "https://12redflags.com/assets/fc-icon.png",
+    "imageUrl": "https://12redflags.com/assets/fc-embed.jpg",
+    "buttonTitle": "Play Spot the Flag",
+    "splashImageUrl": "https://12redflags.com/assets/fc-splash.png",
+    "splashBackgroundColor": "#0a0a0a",
+    "webhookUrl": "https://api.neynar.com/f/app/2f0a2a8c-c55c-4280-ba74-93f3d4d3f68e/event",
+    "subtitle": "Find the 12 crypto red flags",
+    "description": "A fake crypto project with 12 red flags hidden on the page. Find them all without tripping the decoys. Free scam training from Crypto Clarity Collective.",
+    "primaryCategory": "education",
+    "tags": ["crypto", "scams", "security", "education", "game"],
+    "tagline": "Can you spot all 12",
+    "heroImageUrl": "https://12redflags.com/assets/og-image.jpg",
+    "ogTitle": "Spot the Flag",
+    "ogDescription": "12 red flags are hidden on a fake crypto project. How many can you find?",
+    "ogImageUrl": "https://12redflags.com/assets/og-image.jpg"
+  }
+}
