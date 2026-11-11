@@ -34,7 +34,7 @@ The scam claims on the page are fake on purpose. Every card carries a "TRAINING 
 - **spot-the-flag-score-logger.json** receives each finished game, checks it, and appends one row to a Google Sheet. It records the score, flags found, false alarms, time, and which flags were missed. No names, emails or IP addresses are stored. Scores that don't add up (12 flags found but some still marked missed, impossible point totals) are dropped.
 - **spot-the-flag-weekly-summary.json** reads the sheet every Monday morning and emails a summary: games played, average flags found, and the three most-missed flags.
 
-To use them in your own n8n: import each file, attach your own Google Sheets and Gmail credentials, and replace `YOUR_GOOGLE_SHEET_ID` and `you@example.com`. The sheet needs a tab called `Plays` with these headers in row 1: `Received`, `Score`, `Flags found`, `False alarms`, `Seconds`, `Missed flags`, `Client time`.
+To use them in your own n8n: import each file, attach your own Google Sheets and Gmail credentials, and replace `YOUR_GOOGLE_SHEET_ID` and `you@example.com`. The sheet needs a tab called `Plays` with these headers in row 1: `Received`, `Score`, `Flags found`, `False alarms`, `Seconds`, `Missed flags`, `Client time`, `Source`.
 
 ## How the live site updates
 

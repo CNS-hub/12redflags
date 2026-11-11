@@ -199,6 +199,11 @@ footer{padding:30px 0;color:var(--dim);font-size:13px;text-align:center}
 .missed{text-align:left;background:#1f0f0f;border:1px solid #7f1d1d;border-radius:12px;padding:12px 16px;margin-top:10px}
 .missed h4{margin-top:0;color:var(--red)}
 .rbtns{display:grid;gap:10px;margin-top:18px}
+.rname{width:100%;margin-top:16px;padding:12px 14px;border-radius:10px;border:1px solid #444;background:#0f0f0f;color:#fff;font:inherit;font-size:15px}
+.rname::placeholder{color:#777}
+.rchal{margin:12px 0 0;font-weight:900;color:var(--amber);font-size:15px}
+.chal{max-width:640px;margin:0 auto 22px;padding:14px 18px;border:2px solid var(--red);border-radius:14px;background:rgba(239,68,68,.08);font-size:17px;line-height:1.45;color:#fff}
+.chal span{color:var(--red);font-weight:900}
 .rbtns .btn{width:100%;font-size:14px;padding:14px}
 .newbest{color:var(--green);font-weight:900;font-size:13px;letter-spacing:.1em}
 
@@ -252,6 +257,7 @@ const CONFIG = {
 
   <!-- ============ GAME INTRO ============ -->
   <section class="intro">
+    <div class="chal" id="chal" hidden></div>
     <div class="coinvid"><video id="coinVid" muted loop playsinline preload="metadata" poster="/assets/flag-coin-poster.jpg" aria-label="Animated Red Flag Protocol coin: a red flag rises from a cracked wallet as coins drain out"><source src="/assets/flag-coin.mp4" type="video/mp4"></video></div>
     <div class="kicker">A Crypto Clarity Collective challenge</div>
     <h1>Can you spot<br><em>all 12 red flags?</em></h1>
@@ -489,9 +495,12 @@ const CONFIG = {
       <div><b id="rTime"></b><span>Time</span></div>
     </div>
     <p id="rMsg" style="color:#ccc"></p>
+    <p class="rchal" id="rChal" hidden></p>
     <div class="missed" id="rMissedBox"><h4>You missed</h4><ul id="rMissed"></ul></div>
+    <input class="rname" id="rName" type="text" maxlength="20" autocomplete="given-name" placeholder="Your first name (optional, shown to the friend you challenge)" aria-label="Your first name, optional">
     <div class="rbtns">
-      <button class="btn btn-red" id="rShare">Copy my score to share</button>
+      <button class="btn btn-red" id="rShare">Challenge a friend</button>
+      <button class="btn btn-ghost" id="rCard">Save my score card</button>
       <button class="btn btn-ghost" id="rReview">Show me what I missed</button>
       <a class="btn btn-ghost" href="#signup" id="rSignup">Get the free checklist</a>
       <button class="btn btn-ghost" id="rAgain">Play again</button>
@@ -635,6 +644,13 @@ function finish(){
   $("rGrade").textContent=grade;$("rScore").textContent=s+" pts";
   $("rFound").textContent=n+"/12";$("rFalse").textContent=falseAlarms;$("rTime").textContent=fmt(elapsed());
   $("rMsg").textContent=msg;
+  lastGrade=grade;
+  if(challenge){
+    const who=challenge.by||"Your friend",d=s-challenge.s;
+    $("rChal").textContent=d>0?"You beat "+who+" by "+d+" points.":d===0?"Dead even with "+who+".":who+" still leads by "+(-d)+" points.";
+    $("rChal").hidden=false;
+  }
+  cardFile=prepareCard();
   const ul=$("rMissed");ul.innerHTML="";
   for(let i=1;i<=12;i++)if(!found.has(i))ul.appendChild(el("li","#"+i+": "+FLAGS[i].name));
   $("rMissedBox").style.display=n===12?"none":"block";
@@ -651,10 +667,91 @@ $("rAgain").onclick=()=>{
   found.clear();cleared.clear();falseAlarms=0;startT=null;endT=null;over=false;clearInterval(timerId);
   $("sTime").textContent="0:00";document.body.classList.remove("review");render();closeOv($("resOverlay"));window.scrollTo(0,0);
 };
+/* ---------- CHALLENGE LINKS ---------- */
+// A challenge link carries a score in plain URL parameters, e.g. /?by=David&f=10&s=920&t=143
+// Values are range-checked and only ever shown with textContent.
+const cleanName=v=>String(v||"").replace(/[^A-Za-z0-9 .'\-]/g,"").replace(/\s+/g," ").trim().slice(0,20);
+const challenge=(()=>{try{
+  const q=new URLSearchParams(location.search);if(!q.has("f"))return null;
+  const f=Number(q.get("f")),s=Number(q.get("s")),t=Number(q.get("t")||0);
+  if(!Number.isInteger(f)||f<0||f>12||!Number.isInteger(s)||s<0||s>1500||!Number.isInteger(t)||t<0||t>86400)return null;
+  return {f,s,t,by:cleanName(q.get("by"))};
+}catch(e){return null}})();
+if(challenge){
+  const c=$("chal");
+  c.appendChild(el("b",(challenge.by||"A friend")+" spotted "+challenge.f+" of 12 red flags ("+challenge.s+" pts in "+fmt(challenge.t)+"). "));
+  c.appendChild(el("span","Can you beat that?"));
+  c.hidden=false;
+}
+let lastGrade="",cardFile=null;
+try{const n=store.get("flag_name");if(n)$("rName").value=cleanName(n)}catch(e){}
+$("rName").addEventListener("change",()=>store.set("flag_name",cleanName($("rName").value)));
+
+function challengeUrl(){
+  const p=new URLSearchParams(),n=cleanName($("rName").value);
+  if(n)p.set("by",n);
+  p.set("f",String(found.size));p.set("s",String(score()));p.set("t",String(elapsed()));
+  return (CONFIG.siteUrl||location.origin)+"/?"+p.toString();
+}
+function shareText(){
+  return "I spotted "+found.size+" of 12 red flags"+(falseAlarms?" ("+falseAlarms+" false alarm"+(falseAlarms>1?"s":"")+")":"")+" in "+fmt(elapsed())+" on a fake crypto scam site. Can you beat "+score()+" points?";
+}
 $("rShare").onclick=async function(){
-  const t="I spotted "+found.size+" of 12 red flags"+(falseAlarms?" ("+falseAlarms+" false alarm"+(falseAlarms>1?"s":"")+")":"")+" in "+fmt(elapsed())+" on a fake crypto scam site. Can you beat "+score()+" points? "+(CONFIG.siteUrl||"")+" #SpotTheFlag";
-  try{await navigator.clipboard.writeText(t.trim());this.textContent="Copied"}catch(e){this.textContent="Copy failed"}
-  setTimeout(()=>this.textContent="Copy my score to share",1800);
+  const url=challengeUrl(),text=shareText()+" #SpotTheFlag";
+  if(navigator.share){
+    try{await navigator.share({title:"Spot the Flag",text,url});return}
+    catch(e){if(e&&e.name==="AbortError")return}
+  }
+  try{await navigator.clipboard.writeText(text+" "+url);this.textContent="Link copied. Paste it anywhere."}
+  catch(e){this.textContent="Copy failed"}
+  setTimeout(()=>this.textContent="Challenge a friend",2400);
+};
+
+/* ---------- SCORE CARD IMAGE (drawn in the browser, nothing uploaded) ---------- */
+async function drawCard(){
+  const W=1080,H=1080,cv=document.createElement("canvas");cv.width=W;cv.height=H;
+  const g=cv.getContext("2d");
+  try{await Promise.all(["900 190px Inter","800 34px Inter","600 26px Inter"].map(f=>document.fonts.load(f)))}catch(e){}
+  g.fillStyle="#0a0a0a";g.fillRect(0,0,W,H);
+  g.strokeStyle="rgba(255,255,255,0.05)";g.lineWidth=1;
+  for(let x=0;x<=W;x+=40){g.beginPath();g.moveTo(x+.5,0);g.lineTo(x+.5,H);g.stroke()}
+  for(let y=0;y<=H;y+=40){g.beginPath();g.moveTo(0,y+.5);g.lineTo(W,y+.5);g.stroke()}
+  const rg=g.createRadialGradient(540,230,30,540,230,300);
+  rg.addColorStop(0,"rgba(239,68,68,0.42)");rg.addColorStop(1,"rgba(239,68,68,0)");
+  g.fillStyle=rg;g.fillRect(0,0,W,H);
+  const img=await new Promise(r=>{const i=new Image();i.onload=()=>r(i);i.onerror=()=>r(null);i.src="/assets/coin-classic-400.webp"});
+  if(img)g.drawImage(img,390,70,300,300);
+  g.textAlign="center";g.textBaseline="alphabetic";
+  g.fillStyle="#9a9a9a";g.font="800 34px Inter, sans-serif";g.fillText("I SPOTTED",540,440);
+  g.fillStyle="#ef4444";g.font="900 190px Inter, sans-serif";g.fillText(found.size+"/12",540,620);
+  g.fillStyle="#f2f2f2";g.font="900 56px Inter, sans-serif";g.fillText("RED FLAGS",540,690);
+  g.fillStyle="#f59e0b";g.font="800 32px Inter, sans-serif";
+  g.fillText((lastGrade||"").toUpperCase()+"   ·   "+score()+" PTS   ·   "+fmt(elapsed()),540,755);
+  g.fillStyle="#f2f2f2";g.font="800 44px Inter, sans-serif";g.fillText("Can you beat me?",540,840);
+  const bx=290,by=872,bw=500,bh=92,br=18;
+  g.fillStyle="#ef4444";g.beginPath();
+  g.moveTo(bx+br,by);g.arcTo(bx+bw,by,bx+bw,by+bh,br);g.arcTo(bx+bw,by+bh,bx,by+bh,br);
+  g.arcTo(bx,by+bh,bx,by,br);g.arcTo(bx,by,bx+bw,by,br);g.closePath();g.fill();
+  g.fillStyle="#ffffff";g.font="900 44px Inter, sans-serif";g.fillText("12redflags.com",540,933);
+  g.fillStyle="#666";g.font="600 24px Inter, sans-serif";
+  g.fillText("A free training game from Crypto Clarity Collective. Every scam on the site is fake.",540,1035);
+  return cv;
+}
+// Drawn as soon as results open, so the tap that shares it isn't delayed (phones require that).
+function prepareCard(){
+  return drawCard().then(cv=>new Promise(r=>cv.toBlob(b=>r(b?new File([b],"spot-the-flag-score.png",{type:"image/png"}):null),"image/png"))).catch(()=>null);
+}
+$("rCard").onclick=async function(){
+  const b=this,reset=()=>setTimeout(()=>b.textContent="Save my score card",2400);
+  const file=await (cardFile||prepareCard());
+  if(!file){b.textContent="Couldn't make the card";reset();return}
+  if(navigator.canShare&&navigator.canShare({files:[file]})){
+    try{await navigator.share({files:[file],text:shareText()+" "+challengeUrl()});return}
+    catch(e){if(e&&e.name==="AbortError")return}
+  }
+  const a=document.createElement("a");a.href=URL.createObjectURL(file);a.download=file.name;
+  document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);
+  b.textContent="Card saved";reset();
 };
 $("startBtn").onclick=()=>{startGame();$("fakesite").scrollIntoView()};
 
@@ -662,7 +759,7 @@ $("startBtn").onclick=()=>{startGame();$("fakesite").scrollIntoView()};
 function logScore(s,n){
   if(!CONFIG.scoreWebhook)return;
   const missed=[];for(let i=1;i<=12;i++)if(!found.has(i))missed.push(i);
-  const data=JSON.stringify({score:s,found:n,falseAlarms,seconds:elapsed(),missed,ts:new Date().toISOString()});
+  const data=JSON.stringify({score:s,found:n,falseAlarms,seconds:elapsed(),missed,src:challenge?"challenge":"direct",ts:new Date().toISOString()});
   try{navigator.sendBeacon(CONFIG.scoreWebhook,new Blob([data],{type:"text/plain"}))}catch(e){}
 }
 
