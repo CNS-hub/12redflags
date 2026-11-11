@@ -84,7 +84,10 @@ header .wrap{display:flex;justify-content:space-between;align-items:center;paddi
 .skip{font-size:13px;font-weight:700;color:var(--muted);text-decoration:none}
 
 /* ---------- GAME INTRO ---------- */
-.intro{text-align:center;padding:48px 0 30px}
+.intro{text-align:center;padding:40px 0 30px}
+.coinvid{display:block;width:clamp(150px,22vw,220px);aspect-ratio:1;margin:0 auto 22px;border-radius:50%;overflow:hidden;
+  border:3px solid #a8863a;box-shadow:0 0 0 2px #2a2a2a,0 0 50px rgba(239,68,68,.35);background:#111 url(/assets/flag-coin-poster.jpg) center/cover}
+.coinvid video{width:100%;height:100%;object-fit:cover;display:block}
 .kicker{display:inline-block;font-size:12px;font-weight:900;letter-spacing:.16em;text-transform:uppercase;color:var(--red);border:1px solid var(--red-d);padding:6px 12px;border-radius:99px;margin-bottom:18px}
 .intro h1{font-size:clamp(40px,8vw,86px);font-weight:900;line-height:.98;letter-spacing:-.03em;text-transform:uppercase}
 .intro h1 em{font-style:normal;color:var(--red);text-shadow:0 0 24px var(--red-glow)}
@@ -249,6 +252,7 @@ const CONFIG = {
 
   <!-- ============ GAME INTRO ============ -->
   <section class="intro">
+    <div class="coinvid"><video id="coinVid" muted loop playsinline preload="metadata" poster="/assets/flag-coin-poster.jpg" aria-label="Animated Red Flag Protocol coin: a red flag rises from a cracked wallet as coins drain out"><source src="/assets/flag-coin.mp4" type="video/mp4"></video></div>
     <div class="kicker">A Crypto Clarity Collective challenge</div>
     <h1>Can you spot<br><em>all 12 red flags?</em></h1>
     <p class="lead">Below is a fake crypto project built to look like the scams that took billions in 2025. Tap anything that looks wrong. Scammers count on you not checking. Prove them wrong.</p>
@@ -695,6 +699,13 @@ if(CONFIG.beehiivEmbedUrl){const f=el("iframe");f.src=CONFIG.beehiivEmbedUrl;f.t
 else{const a=el("a","Get the free 12 Red Flags checklist","btn btn-red");a.href=CONFIG.newsletterUrl;a.target="_blank";a.rel="noopener";$("signupSlot").appendChild(a)}
 
 render();
+
+/* ---------- COIN ANIMATION (skipped if the visitor prefers reduced motion) ---------- */
+(function(){
+  const v=$("coinVid");if(!v)return;
+  const still=window.matchMedia&&window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  if(!still){v.preload="auto";const p=v.play();if(p&&p.catch)p.catch(()=>{})}
+})();
 </script>
 </body>
 </html>
