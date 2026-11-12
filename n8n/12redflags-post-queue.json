@@ -1,0 +1,119 @@
+{
+  "id": "RedFlagsPostQue1",
+  "name": "12redflags Post Queue",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [ { "field": "cronExpression", "expression": "*/15 * * * *" } ] } },
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000001",
+      "name": "Every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {},
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000002",
+      "name": "Run Now (manual test)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": { "__rl": true, "value": "YOUR_GOOGLE_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Post Queue", "mode": "name" },
+        "options": {}
+      },
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000003",
+      "name": "Read Post Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [240, 100],
+      "alwaysOutputData": true,
+      "credentials": { "googleSheetsOAuth2Api": { "id": "GOOGLE_SHEETS_CRED_ID", "name": "Google Sheets account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pick at most ONE approved Farcaster post that is due. One per run keeps the account from bursting.\n// X rows are ignored until X posting is switched on.\nconst now = Date.now();\nconst rows = $input.all().map(i => i.json).filter(r => r.row_number);\nconst due = rows.filter(r =>\n  String(r['Platform'] || '').trim().toLowerCase() === 'farcaster' &&\n  String(r['Status'] || '').trim().toLowerCase() === 'approved' &&\n  (!String(r['Post after'] || '').trim() || (() => { const d = new Date(String(r['Post after'])); return isNaN(d) || d.getTime() <= now; })())\n);\nif (!due.length) return [];\nconst r = due[0];\nconst text = String(r['Text'] || '').trim();\nconst link = String(r['Link'] || '').trim();\nlet problem = '';\nif (!text) problem = 'Text is empty';\nelse if (Buffer.byteLength(text, 'utf8') > 320) problem = 'Text is ' + Buffer.byteLength(text, 'utf8') + ' bytes; Farcaster allows 320. Shorten it and set Status back to approved.';\nelse if (link && !/^https:\\/\\//.test(link)) problem = 'Link must start with https://';\nreturn [{ json: { row_number: r.row_number, id: r['ID'], text, link, ok: !problem, problem } }];"
+      },
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000004",
+      "name": "Pick Next Post",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
+          "conditions": [ { "id": "c1", "leftValue": "={{ $json.ok }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000005",
+      "name": "Valid?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [720, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.neynar.com/v2/farcaster/cast",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ signer_uuid: 'YOUR_NEYNAR_SIGNER_UUID', text: $json.text, embeds: $json.link ? [{ url: $json.link }] : [] }) }}",
+        "options": { "response": { "response": { "fullResponse": true, "neverError": true } } }
+      },
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000006",
+      "name": "Cast via Neynar",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [960, 0],
+      "credentials": { "httpHeaderAuth": { "id": "NEYNAR_CRED_ID", "name": "Neynar 12redflags" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const pick = $('Pick Next Post').first().json;\nconst stamp = new Date().toLocaleString('en-US', { timeZone: 'America/Los_Angeles', hour12: false });\nconst res = $input.first().json;\nlet out;\nif (!pick.ok) {\n  out = { row_number: pick.row_number, 'Status': 'error', 'Notes': pick.problem };\n} else {\n  const body = res.body || {};\n  const hash = body.cast && body.cast.hash;\n  if (res.statusCode >= 200 && res.statusCode < 300 && hash) {\n    out = { row_number: pick.row_number, 'Status': 'posted', 'Posted at': stamp, 'Post URL': 'https://farcaster.xyz/12redflags/' + hash.slice(0, 10), 'Notes': '' };\n  } else {\n    const msg = (body.message || JSON.stringify(body)).slice(0, 300);\n    out = { row_number: pick.row_number, 'Status': 'error', 'Notes': 'Neynar ' + res.statusCode + ': ' + msg };\n  }\n}\nreturn [{ json: out }];"
+      },
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000007",
+      "name": "Build Row Update",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1200, 100]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "__rl": true, "value": "YOUR_GOOGLE_SHEET_ID", "mode": "id" },
+        "sheetName": { "__rl": true, "value": "Post Queue", "mode": "name" },
+        "columns": { "mappingMode": "autoMapInputData", "value": {}, "matchingColumns": ["row_number"], "schema": [] },
+        "options": {}
+      },
+      "id": "d3b8c4f2-3333-4c3c-9c03-7b3c00000008",
+      "name": "Update Row",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [1440, 100],
+      "credentials": { "googleSheetsOAuth2Api": { "id": "GOOGLE_SHEETS_CRED_ID", "name": "Google Sheets account" } }
+    }
+  ],
+  "connections": {
+    "Every 15 min": { "main": [[ { "node": "Read Post Queue", "type": "main", "index": 0 } ]] },
+    "Run Now (manual test)": { "main": [[ { "node": "Read Post Queue", "type": "main", "index": 0 } ]] },
+    "Read Post Queue": { "main": [[ { "node": "Pick Next Post", "type": "main", "index": 0 } ]] },
+    "Pick Next Post": { "main": [[ { "node": "Valid?", "type": "main", "index": 0 } ]] },
+    "Valid?": { "main": [
+      [ { "node": "Cast via Neynar", "type": "main", "index": 0 } ],
+      [ { "node": "Build Row Update", "type": "main", "index": 0 } ]
+    ] },
+    "Cast via Neynar": { "main": [[ { "node": "Build Row Update", "type": "main", "index": 0 } ]] },
+    "Build Row Update": { "main": [[ { "node": "Update Row", "type": "main", "index": 0 } ]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Los_Angeles" },
+  "active": false
+}
