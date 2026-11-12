@@ -49,7 +49,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const NAMES = {1:'Anonymous or fake team',2:'Unlocked liquidity',3:'Unaudited contract or fake audit',4:'Concentrated holdings',5:'Unrealistic yields',6:'No real development activity',7:'Fake partnerships',8:'Hidden mint functions',9:'Brand-new protocol',10:'Low or fake TVL',11:'Opaque treasury',12:'Toxic community and fake urgency'};\nconst rows = $input.all().map(i => i.json).filter(r => r['Score'] !== undefined && r['Score'] !== '');\nconst parse = s => { const d = new Date(String(s).replace(',', '')); return isNaN(d) ? null : d; };\nconst cutoff = Date.now() - 7 * 24 * 3600 * 1000;\nconst week = rows.filter(r => { const d = parse(r['Received']); return d && d.getTime() >= cutoff; });\n\nfunction stats(list) {\n  const n = list.length;\n  if (!n) return null;\n  const num = k => list.map(r => Number(r[k]) || 0);\n  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;\n  const secs = num('Seconds').sort((a, b) => a - b);\n  const median = secs.length % 2 ? secs[(secs.length - 1) / 2] : (secs[secs.length / 2 - 1] + secs[secs.length / 2]) / 2;\n  const found = num('Flags found');\n  const fa = num('False alarms');\n  const misses = {};\n  for (let f = 1; f <= 12; f++) misses[f] = 0;\n  for (const r of list) String(r['Missed flags'] || '').split(',').filter(Boolean).forEach(f => { if (misses[f] !== undefined) misses[f]++; });\n  const top = Object.entries(misses).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)\n    .map(([f, c]) => `#${f} ${NAMES[f]}: missed by ${Math.round(c / n * 100)}% (${c} of ${n})`);\n  return {\n    n,\n    avgFound: avg(found).toFixed(1),\n    avgScore: Math.round(avg(num('Score'))),\n    avgFalse: avg(fa).toFixed(1),\n    medianSecs: Math.round(median),\n    all12: found.filter(x => x === 12).length,\n    perfect: list.filter(r => Number(r['Flags found']) === 12 && Number(r['False alarms']) === 0).length,\n    top\n  };\n}\n\nconst fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;\nconst block = (title, s) => !s ? `${title}\\nNo games finished.` : [\n  title,\n  `Games finished: ${s.n}`,\n  `Average flags found: ${s.avgFound} of 12`,\n  `Average score: ${s.avgScore}`,\n  `Average false alarms: ${s.avgFalse}`,\n  `Median time: ${fmt(s.medianSecs)}`,\n  `Found all 12: ${s.all12} (${Math.round(s.all12 / s.n * 100)}%)`,\n  `Perfect games (12 found, 0 false alarms): ${s.perfect}`,\n  s.top.length ? `Most missed:\\n  ${s.top.join('\\n  ')}` : 'Most missed: none, everyone caught everything'\n].join('\\n');\n\nconst w = stats(week), a = stats(rows);\nconst LESSON = {\"1\":\"Cartoon avatars are not a team. If nobody real is accountable, nobody is.\",\"2\":\"\\\"SAFU\\\" is not a liquidity lock. Find the locker contract yourself.\",\"3\":\"Anyone can paste an audit badge. Go to the auditor's own site and search for the project.\",\"4\":\"Check the Holders tab. If a few wallets own most of the supply, they can dump on you.\",\"5\":\"If nobody deposits tomorrow, where does the yield come from? If no one can say, it's you.\",\"6\":\"One commit, forked two years ago, is not development. Read the commit history.\",\"7\":\"A row of logos is not a partnership. Check the partner's own site.\",\"8\":\"\\\"Fixed supply, we promise\\\" means nothing if the contract can mint. Check Read/Write Contract.\",\"9\":\"\\\"Get in early\\\" is the pitch. Most rugs happen in the first weeks. New means unproven.\",\"10\":\"A big TVL number on a website is just text. Check DefiLlama or DEX Screener.\",\"11\":\"\\\"Multisig secured, addresses coming soon\\\" means you can't see where the money is.\",\"12\":\"Countdown timers and \\\"no FUD\\\" bans exist to stop you from checking. Slow down.\"};\nconst chal = week.filter(r => String(r['Source'] || '') === 'challenge').length;\nfunction topMiss(list) {\n  const m = {}; for (let f = 1; f <= 12; f++) m[f] = 0;\n  for (const r of list) String(r['Missed flags'] || '').split(',').filter(Boolean).forEach(f => { if (m[f] !== undefined) m[f]++; });\n  const best = Object.entries(m).sort((x, y) => y[1] - x[1])[0];\n  return best && best[1] > 0 ? { f: Number(best[0]), c: best[1] } : null;\n}\nlet drafts = '';\nconst tm = w ? topMiss(week) : null;\nif (tm) {\n  const who = tm.c + ' of ' + w.n + ' player' + (w.n === 1 ? '' : 's');\n  const x = 'Most-missed red flag at 12redflags.com this week: #' + tm.f + ' ' + NAMES[tm.f] + '. ' + who + ' missed it.\\n\\n' + LESSON[tm.f] + '\\n\\nCan you spot all 12? 12redflags.com';\n  const fc = 'This week\\'s most-missed red flag in the Spot the Flag game: #' + tm.f + ' ' + NAMES[tm.f] + '. ' + who + ' missed it.\\n\\n' + LESSON[tm.f] + '\\n\\nThe game is free, takes 3 minutes, and every scam on the page is fake on purpose: 12redflags.com';\n  drafts = ['READY TO POST (copy, edit if you like, post by hand)', '', 'X (' + x.length + ' of 280 characters):', x, '', 'Farcaster:', fc].join('\\n');\n}\nconst subject = w ? `Spot the Flag weekly: ${w.n} games, ${w.avgFound}/12 average` : 'Spot the Flag weekly: no games this week';\nconst body = [\n  block('LAST 7 DAYS', w),\n  w ? 'Games from challenge links: ' + chal + ' of ' + w.n : '',\n  '',\n  block('ALL TIME', a),\n  '',\n  drafts,\n  drafts ? '' : null,\n  'Full data: https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit',\n  'Site: https://12redflags.com'\n].filter(x => x !== null).join('\\n');\nreturn [{ json: { subject, body } }];"
+        "jsCode": "const NAMES = {1:'Anonymous or fake team',2:'Unlocked liquidity',3:'Unaudited contract or fake audit',4:'Concentrated holdings',5:'Unrealistic yields',6:'No real development activity',7:'Fake partnerships',8:'Hidden mint functions',9:'Brand-new protocol',10:'Low or fake TVL',11:'Opaque treasury',12:'Toxic community and fake urgency'};\nconst rows = $input.all().map(i => i.json).filter(r => r['Score'] !== undefined && r['Score'] !== '');\nconst parse = s => { const d = new Date(String(s).replace(',', '')); return isNaN(d) ? null : d; };\nconst cutoff = Date.now() - 7 * 24 * 3600 * 1000;\nconst week = rows.filter(r => { const d = parse(r['Received']); return d && d.getTime() >= cutoff; });\n\nfunction stats(list) {\n  const n = list.length;\n  if (!n) return null;\n  const num = k => list.map(r => Number(r[k]) || 0);\n  const avg = a => a.reduce((x, y) => x + y, 0) / a.length;\n  const secs = num('Seconds').sort((a, b) => a - b);\n  const median = secs.length % 2 ? secs[(secs.length - 1) / 2] : (secs[secs.length / 2 - 1] + secs[secs.length / 2]) / 2;\n  const found = num('Flags found');\n  const fa = num('False alarms');\n  const misses = {};\n  for (let f = 1; f <= 12; f++) misses[f] = 0;\n  for (const r of list) String(r['Missed flags'] || '').split(',').filter(Boolean).forEach(f => { if (misses[f] !== undefined) misses[f]++; });\n  const top = Object.entries(misses).filter(([, c]) => c > 0).sort((a, b) => b[1] - a[1]).slice(0, 3)\n    .map(([f, c]) => `#${f} ${NAMES[f]}: missed by ${Math.round(c / n * 100)}% (${c} of ${n})`);\n  return {\n    n,\n    avgFound: avg(found).toFixed(1),\n    avgScore: Math.round(avg(num('Score'))),\n    avgFalse: avg(fa).toFixed(1),\n    medianSecs: Math.round(median),\n    all12: found.filter(x => x === 12).length,\n    perfect: list.filter(r => Number(r['Flags found']) === 12 && Number(r['False alarms']) === 0).length,\n    top\n  };\n}\n\nconst fmt = s => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;\nconst block = (title, s) => !s ? `${title}\\nNo games finished.` : [\n  title,\n  `Games finished: ${s.n}`,\n  `Average flags found: ${s.avgFound} of 12`,\n  `Average score: ${s.avgScore}`,\n  `Average false alarms: ${s.avgFalse}`,\n  `Median time: ${fmt(s.medianSecs)}`,\n  `Found all 12: ${s.all12} (${Math.round(s.all12 / s.n * 100)}%)`,\n  `Perfect games (12 found, 0 false alarms): ${s.perfect}`,\n  s.top.length ? `Most missed:\\n  ${s.top.join('\\n  ')}` : 'Most missed: none, everyone caught everything'\n].join('\\n');\n\nconst w = stats(week), a = stats(rows);\nconst LESSON = {\"1\":\"Cartoon avatars are not a team. If nobody real is accountable, nobody is.\",\"2\":\"\\\"SAFU\\\" is not a liquidity lock. Find the locker contract yourself.\",\"3\":\"Anyone can paste an audit badge. Go to the auditor's own site and search for the project.\",\"4\":\"Check the Holders tab. If a few wallets own most of the supply, they can dump on you.\",\"5\":\"If nobody deposits tomorrow, where does the yield come from? If no one can say, it's you.\",\"6\":\"One commit, forked two years ago, is not development. Read the commit history.\",\"7\":\"A row of logos is not a partnership. Check the partner's own site.\",\"8\":\"\\\"Fixed supply, we promise\\\" means nothing if the contract can mint. Check Read/Write Contract.\",\"9\":\"\\\"Get in early\\\" is the pitch. Most rugs happen in the first weeks. New means unproven.\",\"10\":\"A big TVL number on a website is just text. Check DefiLlama or DEX Screener.\",\"11\":\"\\\"Multisig secured, addresses coming soon\\\" means you can't see where the money is.\",\"12\":\"Countdown timers and \\\"no FUD\\\" bans exist to stop you from checking. Slow down.\"};\nconst chal = week.filter(r => String(r['Source'] || '') === 'challenge').length;\nfunction topMiss(list) {\n  const m = {}; for (let f = 1; f <= 12; f++) m[f] = 0;\n  for (const r of list) String(r['Missed flags'] || '').split(',').filter(Boolean).forEach(f => { if (m[f] !== undefined) m[f]++; });\n  const best = Object.entries(m).sort((x, y) => y[1] - x[1])[0];\n  return best && best[1] > 0 ? { f: Number(best[0]), c: best[1] } : null;\n}\nlet drafts = '';\nconst tm = w ? topMiss(week) : null;\nif (tm) {\n  const who = tm.c + ' of ' + w.n + ' player' + (w.n === 1 ? '' : 's');\n  const x = 'Most-missed red flag at 12redflags.com this week: #' + tm.f + ' ' + NAMES[tm.f] + '. ' + who + ' missed it.\\n\\n' + LESSON[tm.f] + '\\n\\nCan you spot all 12? 12redflags.com';\n  const fc = 'This week\\'s most-missed red flag in the Spot the Flag game: #' + tm.f + ' ' + NAMES[tm.f] + '. ' + who + ' missed it.\\n\\n' + LESSON[tm.f] + '\\n\\nThe game is free, takes 3 minutes, and every scam on the page is fake on purpose: 12redflags.com';\n  drafts = ['READY TO POST (the Farcaster one is also waiting in the Post Queue tab as a draft; set it to approved to send)', '', 'X (' + x.length + ' of 280 characters):', x, '', 'Farcaster:', fc].join('\\n');\n}\nconst subject = w ? `Spot the Flag weekly: ${w.n} games, ${w.avgFound}/12 average` : 'Spot the Flag weekly: no games this week';\nconst body = [\n  block('LAST 7 DAYS', w),\n  w ? 'Games from challenge links: ' + chal + ' of ' + w.n : '',\n  '',\n  block('ALL TIME', a),\n  '',\n  drafts,\n  drafts ? '' : null,\n  'Full data: https://docs.google.com/spreadsheets/d/YOUR_GOOGLE_SHEET_ID/edit',\n  'Site: https://12redflags.com'\n].filter(x => x !== null).join('\\n');\nconst queueText = tm ? ('Most-missed red flag in Spot the Flag this week: #' + tm.f + ' ' + NAMES[tm.f] + '. ' + tm.c + ' of ' + w.n + ' player' + (w.n === 1 ? '' : 's') + ' missed it.\\n\\n' + LESSON[tm.f] + '\\n\\nHow many of the 12 can you find?') : null;\nreturn [{ json: { subject, body, queueText } }];"
       },
       "id": "c2a7b3e1-2222-4b2b-8b02-6a2b00000003",
       "name": "Build Summary",
@@ -90,6 +90,49 @@
         0,
         200
       ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const q = $input.first().json.queueText;\nif (!q) return [];\nconst d = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Los_Angeles' });\nreturn [{ json: { 'ID': 'weekly-' + d, 'Platform': 'farcaster', 'Text': q, 'Link': 'https://12redflags.com/', 'Status': 'draft', 'Notes': 'From the Monday summary. Edit if you like, then set Status to approved.' } }];"
+      },
+      "id": "c2a7b3e1-2222-4b2b-8b02-6a2b00000006",
+      "name": "Make Queue Draft",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        720,
+        200
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "YOUR_GOOGLE_SHEET_ID",
+          "mode": "id"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "Post Queue",
+          "mode": "name"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": []
+        },
+        "options": {}
+      },
+      "id": "c2a7b3e1-2222-4b2b-8b02-6a2b00000007",
+      "name": "Add to Post Queue",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        960,
+        200
+      ]
     }
   ],
   "connections": {
@@ -122,6 +165,11 @@
             "node": "Email David",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Make Queue Draft",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -131,6 +179,17 @@
         [
           {
             "node": "Read Plays",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Make Queue Draft": {
+      "main": [
+        [
+          {
+            "node": "Add to Post Queue",
             "type": "main",
             "index": 0
           }
