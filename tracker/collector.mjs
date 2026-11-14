@@ -144,13 +144,13 @@ async function profile(addresses) {
   });
 }
 
-async function collectToken(tok, latest) {
+async function collectToken(tok, latest, deadline) {
   const token = lc(tok.address), poolId = lc(tok.pool_id), paired = lc(tok.paired);
   const dec = tok.decimals || 18;
   const supply = tok.total_supply ? BigInt(String(tok.total_supply).split(".")[0]) * 10n ** BigInt(dec) : null;
   let from = Number(tok.last_block ?? tok.deploy_block - 1) + 1;
 
-  while (from <= latest && Date.now() - started < MAX_RUNTIME_MS) {
+  while (from <= latest && Date.now() < deadline) {
     const to = Math.min(latest, from + BLOCK_STEP - 1);
     const raw = await getTransfers(token, from, to);
 
@@ -303,8 +303,14 @@ async function collect() {
   const tokens = await api("tokens");
   if (!tokens.length) return console.log("no active tokens");
   const latest = parseInt(await rpc("eth_blockNumber", []), 16) - 3; // stay a few blocks behind the tip
-  for (const t of tokens) {
-    try { await collectToken(t, latest); }
+  // Newest launches first, and each token gets a fair share of the minute so a long
+  // backfill can't starve a live launch.
+  tokens.sort((a, b) => Number(b.deploy_block) - Number(a.deploy_block));
+  for (let i = 0; i < tokens.length; i++) {
+    const t = tokens[i];
+    const left = MAX_RUNTIME_MS - (Date.now() - started);
+    const deadline = Date.now() + Math.max(5000, left / (tokens.length - i));
+    try { await collectToken(t, latest, deadline); }
     catch (e) { console.error(`${new Date().toISOString()} ${t.symbol} ERROR ${e.message}`); }
   }
 }
