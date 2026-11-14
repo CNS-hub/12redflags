@@ -22,6 +22,7 @@ This repo is the opposite on purpose. Everything here is built in public, with t
 | `n8n/` | The automations behind it, as n8n workflow exports. |
 | `assets/` | The Red Flag Protocol artwork. `flag-icon-1000.png` (big flag) is for small sizes: token icon, favicon, app icons. `flag-icon-1000-classic.png` and `flag-logo.jpg` (smaller flag) are for anywhere the art shows large. |
 | `ops/` | The deploy script and cron schedule that publish `site/` to 12redflags.com. |
+| `tracker/` | The on-chain tracker: records every trade of a watched token on Base and tags snipers, bundled buys, sandwich bots, fresh wallets, whale trades, zero-value (address poisoning) transfers and copycat tokens. |
 
 ### site/index.html
 
@@ -36,6 +37,20 @@ The scam claims on the page are fake on purpose. Every card carries a "TRAINING 
 - **12redflags-post-queue.json** posts to Farcaster from a `Post Queue` tab in the same sheet. Nothing posts until a person sets a row's Status to `approved`, and it sends at most one post every 15 minutes. Posting goes through Neynar with a managed signer; `ops/farcaster-signer/connect.mjs` is the one-time script that created it.
 
 To use them in your own n8n: import each file, attach your own Google Sheets and Gmail credentials, and replace `YOUR_GOOGLE_SHEET_ID` and `you@example.com`. The sheet needs a tab called `Plays` with these headers in row 1: `Received`, `Score`, `Flags found`, `False alarms`, `Seconds`, `Missed flags`, `Client time`, `Source`.
+
+### tracker/
+
+`collector.mjs` runs every minute on a small server. For each watched token it pulls new transfers from Alchemy (free tier), finds the Uniswap v4 swaps, and works out who traded. Then it looks for patterns:
+
+- **Snipers:** buys within 5 blocks (about 10 seconds) of the token going live
+- **Bundles:** 3 or more different wallets buying back-to-back in one block for nearly the same amount, usually one operator pretending to be a crowd
+- **Sandwiches:** a wallet buys right before someone else's trade and sells right after, in the same block
+- **Fresh wallets:** a buyer whose wallet was first funded less than 24 hours earlier, and funding clusters where 3+ buyers were funded by the same address
+- **Whales:** one trade moving 1% or more of the supply
+- **Zero-value transfers:** the address poisoning pattern
+- **Copycats:** fake FLAG or Red Flag tokens on Base, checked hourly on DEX Screener
+
+Everything is stored in Supabase behind a single function that needs a secret, and a daily email summarizes it. Keys live in a `.env` file on the server, never in this repo.
 
 ## How the live site updates
 
