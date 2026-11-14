@@ -3,12 +3,24 @@
   "name": "$FLAG Tracker Telegram Alerts",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [ { "field": "cronExpression", "expression": "*/5 * * * *" } ] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "*/5 * * * *"
+            }
+          ]
+        }
+      },
       "id": "a7c1d2e3-5555-4e5e-8e05-9d5e00000001",
       "name": "Every 5 min",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {},
@@ -16,17 +28,28 @@
       "name": "Run Now (manual test)",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [0, 200]
+      "position": [
+        0,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "YOUR_SUPABASE_URL/rest/v1/rpc/flag_api",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [
-          { "name": "apikey", "value": "YOUR_SUPABASE_PUBLISHABLE_KEY" },
-          { "name": "Authorization", "value": "Bearer YOUR_SUPABASE_PUBLISHABLE_KEY" }
-        ] },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_PUBLISHABLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_PUBLISHABLE_KEY"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{\"p_secret\":\"YOUR_FLAG_API_SECRET\",\"p_action\":\"pending_alerts\",\"p_payload\":{}}",
@@ -36,23 +59,44 @@
       "name": "Get Pending",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 100]
+      "position": [
+        240,
+        100
+      ]
     },
     {
       "parameters": {
-        "jsCode": "// The HTTP node splits a JSON array into items; collect them back.\nconst ev = $input.all().map(i => i.json).filter(e => e && e.id);\nif (!ev.length) return [];\nconst short = a => a ? a.slice(0, 6) + '...' + a.slice(-4) : '?';\n// Official $FLAG: everything. Dry-run tokens: only the interesting stuff.\nconst DRY = new Set(['copycat', 'first_trade', 'sandwich', 'sniper', 'bundle']);\n// Backfills of old launches (label 'pipeline test') stay in the daily email only.\nconst keep = ev.filter(e => e.type === 'copycat' || (e.type === 'charity_receipt' && !(e.detail || {}).zero_or_dust) || e.official || (DRY.has(e.type) && e.label !== 'pipeline test'));\nconst groups = {};\nfor (const e of keep) {\n  const k = (e.type === 'copycat' ? 'COPYCAT' : e.type === 'charity_receipt' ? 'CHARITY' : (e.symbol || short(e.token)) + (e.official ? ' (OFFICIAL)' : '')) + '|' + e.type;\n  (groups[k] = groups[k] || []).push(e);\n}\nconst label = { sniper: 'sniper buy', bundle: 'bundled buy', sandwich: 'sandwich attack', first_trade: 'first trade', whale: 'whale trade', zero_value_transfer: 'zero-value transfer (poisoning pattern)', copycat: 'copycat token', charity_receipt: 'payment to Covenant House' };\nconst lines = [];\nfor (const [k, list] of Object.entries(groups)) {\n  const [tok, type] = k.split('|');\n  lines.push(`🚩 ${tok}: ${list.length} ${label[type] || type}${list.length > 1 ? 's' : ''}`);\n  for (const e of list.slice(0, 3)) {\n    const x = e.detail || {};\n    if (type === 'copycat') lines.push(`   ${x.symbol} \"${x.name}\" ${x.url || ''}`);\n    else if (type === 'sniper') lines.push(`   ${short(e.wallet)} bought ${x.blocks_after_deploy} blocks after launch for ${Number(x.paid).toFixed(4)} ETH`);\n    else if (type === 'bundle') lines.push(`   ${(x.wallets || []).length} wallets back-to-back in block ${x.block}, ~${Number((x.paid_each || [0])[0]).toFixed(4)} ETH each`);\n    else if (type === 'sandwich') lines.push(`   ${short(x.attacker)} sandwiched ${short(x.victim)} https://basescan.org/tx/${e.tx}`);\n    else if (type === 'first_trade') lines.push(`   ${x.side} by ${short(e.wallet)}, ${x.blocks_after_deploy} blocks after launch`);\n    else if (type === 'whale') lines.push(`   ${x.side} ${Number(x.amount).toLocaleString()} tokens for ${x.paid} ETH by ${short(e.wallet)}`);\n    else if (type === 'charity_receipt') lines.push(`   ${x.amount} ${x.asset} from ${short(x.from)} https://basescan.org/tx/${e.tx}`);\n    else lines.push(`   ${short(e.wallet)} https://basescan.org/tx/${e.tx}`);\n  }\n}\nconst ids = ev.map(e => e.id);\nlet text = lines.join('\\n');\nif (text.length > 3900) text = text.slice(0, 3900) + '\\n...more in the daily email';\nreturn [{ json: { text, send: lines.length > 0, ids } }];"
+        "jsCode": "// The HTTP node splits a JSON array into items; collect them back.\nconst ev = $input.all().map(i => i.json).filter(e => e && e.id);\nif (!ev.length) return [];\nconst short = a => a ? a.slice(0, 6) + '...' + a.slice(-4) : '?';\n// Official $FLAG: everything. Dry-run tokens: only the interesting stuff.\nconst DRY = new Set(['copycat', 'first_trade', 'sandwich', 'sniper', 'bundle']);\n// Backfills of old launches (label 'pipeline test') stay in the daily email only.\nconst keep = ev.filter(e => e.type === 'copycat' || e.type === 'scam_report' || (e.type === 'charity_receipt' && !(e.detail || {}).zero_or_dust) || e.official || (DRY.has(e.type) && e.label !== 'pipeline test'));\nconst groups = {};\nfor (const e of keep) {\n  const k = (e.type === 'copycat' ? 'COPYCAT' : e.type === 'scam_report' ? 'SCAM INBOX' : e.type === 'charity_receipt' ? 'CHARITY' : (e.symbol || short(e.token)) + (e.official ? ' (OFFICIAL)' : '')) + '|' + e.type;\n  (groups[k] = groups[k] || []).push(e);\n}\nconst label = { sniper: 'sniper buy', bundle: 'bundled buy', sandwich: 'sandwich attack', first_trade: 'first trade', whale: 'whale trade', zero_value_transfer: 'zero-value transfer (poisoning pattern)', copycat: 'copycat token', charity_receipt: 'payment to Covenant House', scam_report: 'new scam report' };\nconst lines = [];\nfor (const [k, list] of Object.entries(groups)) {\n  const [tok, type] = k.split('|');\n  lines.push(`🚩 ${tok}: ${list.length} ${label[type] || type}${list.length > 1 ? 's' : ''}`);\n  for (const e of list.slice(0, 3)) {\n    const x = e.detail || {};\n    if (type === 'copycat') lines.push(`   ${x.symbol} \"${x.name}\" ${x.url || ''}`);\n    else if (type === 'sniper') lines.push(`   ${short(e.wallet)} bought ${x.blocks_after_deploy} blocks after launch for ${Number(x.paid).toFixed(4)} ETH`);\n    else if (type === 'bundle') lines.push(`   ${(x.wallets || []).length} wallets back-to-back in block ${x.block}, ~${Number((x.paid_each || [0])[0]).toFixed(4)} ETH each`);\n    else if (type === 'sandwich') lines.push(`   ${short(x.attacker)} sandwiched ${short(x.victim)} https://basescan.org/tx/${e.tx}`);\n    else if (type === 'first_trade') lines.push(`   ${x.side} by ${short(e.wallet)}, ${x.blocks_after_deploy} blocks after launch`);\n    else if (type === 'whale') lines.push(`   ${x.side} ${Number(x.amount).toLocaleString()} tokens for ${x.paid} ETH by ${short(e.wallet)}`);\n    else if (type === 'scam_report') lines.push(`   \"${x.subject}\" from ${x.from} (${(x.links || []).length} links, ${(x.evm_addresses || []).length + (x.btc_addresses || []).length} wallet addresses)`);\n    else if (type === 'charity_receipt') lines.push(`   ${x.amount} ${x.asset} from ${short(x.from)} https://basescan.org/tx/${e.tx}`);\n    else lines.push(`   ${short(e.wallet)} https://basescan.org/tx/${e.tx}`);\n  }\n}\nconst ids = ev.map(e => e.id);\nlet text = lines.join('\\n');\nif (text.length > 3900) text = text.slice(0, 3900) + '\\n...more in the daily email';\nreturn [{ json: { text, send: lines.length > 0, ids } }];"
       },
       "id": "a7c1d2e3-5555-4e5e-8e05-9d5e00000004",
       "name": "Build Alert",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 100]
+      "position": [
+        480,
+        100
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "loose" },
-          "conditions": [ { "id": "c1", "leftValue": "={{ $json.send }}", "rightValue": true, "operator": { "type": "boolean", "operation": "true", "singleValue": true } } ],
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "c1",
+              "leftValue": "={{ $json.send }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true",
+                "singleValue": true
+              }
+            }
+          ],
           "combinator": "and"
         },
         "options": {}
@@ -61,31 +105,53 @@
       "name": "Anything to send?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [720, 100]
+      "position": [
+        720,
+        100
+      ]
     },
     {
       "parameters": {
         "chatId": "YOUR_TELEGRAM_CHAT_ID",
         "text": "={{ $json.text }}",
-        "additionalFields": { "appendAttribution": false, "disable_web_page_preview": true }
+        "additionalFields": {
+          "appendAttribution": false,
+          "disable_web_page_preview": true
+        }
       },
       "id": "a7c1d2e3-5555-4e5e-8e05-9d5e00000006",
       "name": "Telegram David",
       "type": "n8n-nodes-base.telegram",
       "typeVersion": 1.2,
-      "position": [960, 0],
+      "position": [
+        960,
+        0
+      ],
       "webhookId": "flag-tracker-telegram",
-      "credentials": { "telegramApi": { "id": "TELEGRAM_CRED_ID", "name": "CCC Bot" } }
+      "credentials": {
+        "telegramApi": {
+          "id": "TELEGRAM_CRED_ID",
+          "name": "CCC Bot"
+        }
+      }
     },
     {
       "parameters": {
         "method": "POST",
         "url": "YOUR_SUPABASE_URL/rest/v1/rpc/flag_api",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [
-          { "name": "apikey", "value": "YOUR_SUPABASE_PUBLISHABLE_KEY" },
-          { "name": "Authorization", "value": "Bearer YOUR_SUPABASE_PUBLISHABLE_KEY" }
-        ] },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_PUBLISHABLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_PUBLISHABLE_KEY"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "={{ JSON.stringify({ p_secret: 'YOUR_FLAG_API_SECRET', p_action: 'mark_notified', p_payload: { ids: $('Build Alert').first().json.ids } }) }}",
@@ -95,20 +161,90 @@
       "name": "Mark Sent",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1200, 100]
+      "position": [
+        1200,
+        100
+      ]
     }
   ],
   "connections": {
-    "Every 5 min": { "main": [[ { "node": "Get Pending", "type": "main", "index": 0 } ]] },
-    "Run Now (manual test)": { "main": [[ { "node": "Get Pending", "type": "main", "index": 0 } ]] },
-    "Get Pending": { "main": [[ { "node": "Build Alert", "type": "main", "index": 0 } ]] },
-    "Build Alert": { "main": [[ { "node": "Anything to send?", "type": "main", "index": 0 } ]] },
-    "Anything to send?": { "main": [
-      [ { "node": "Telegram David", "type": "main", "index": 0 } ],
-      [ { "node": "Mark Sent", "type": "main", "index": 0 } ]
-    ] },
-    "Telegram David": { "main": [[ { "node": "Mark Sent", "type": "main", "index": 0 } ]] }
+    "Every 5 min": {
+      "main": [
+        [
+          {
+            "node": "Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now (manual test)": {
+      "main": [
+        [
+          {
+            "node": "Get Pending",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Pending": {
+      "main": [
+        [
+          {
+            "node": "Build Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Alert": {
+      "main": [
+        [
+          {
+            "node": "Anything to send?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anything to send?": {
+      "main": [
+        [
+          {
+            "node": "Telegram David",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram David": {
+      "main": [
+        [
+          {
+            "node": "Mark Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1", "timezone": "America/Los_Angeles" },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Los_Angeles"
+  },
   "active": false
 }

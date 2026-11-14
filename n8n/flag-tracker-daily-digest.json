@@ -3,12 +3,24 @@
   "name": "$FLAG Tracker Daily Digest",
   "nodes": [
     {
-      "parameters": { "rule": { "interval": [ { "field": "cronExpression", "expression": "41 6 * * *" } ] } },
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "41 6 * * *"
+            }
+          ]
+        }
+      },
       "id": "f1a9c7e2-4444-4d4d-9d04-8c4d00000001",
       "name": "Daily 6:41am",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [0, 0]
+      "position": [
+        0,
+        0
+      ]
     },
     {
       "parameters": {},
@@ -16,17 +28,28 @@
       "name": "Run Now (manual test)",
       "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [0, 200]
+      "position": [
+        0,
+        200
+      ]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "YOUR_SUPABASE_URL/rest/v1/rpc/flag_api",
         "sendHeaders": true,
-        "headerParameters": { "parameters": [
-          { "name": "apikey", "value": "YOUR_SUPABASE_PUBLISHABLE_KEY" },
-          { "name": "Authorization", "value": "Bearer YOUR_SUPABASE_PUBLISHABLE_KEY" }
-        ] },
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "YOUR_SUPABASE_PUBLISHABLE_KEY"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer YOUR_SUPABASE_PUBLISHABLE_KEY"
+            }
+          ]
+        },
         "sendBody": true,
         "specifyBody": "json",
         "jsonBody": "{\"p_secret\":\"YOUR_FLAG_API_SECRET\",\"p_action\":\"digest\",\"p_payload\":{\"hours\":24}}",
@@ -36,17 +59,23 @@
       "name": "Get Digest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [240, 100]
+      "position": [
+        240,
+        100
+      ]
     },
     {
       "parameters": {
-        "jsCode": "const d = $input.first().json;\nconst ev = d.events || [];\nconst count = (type, token) => ev.filter(e => e.type === type && (!token || e.token === token)).length;\nconst short = a => a ? a.slice(0, 6) + '...' + a.slice(-4) : '';\nconst scan = a => 'https://basescan.org/address/' + a;\nconst lines = [];\nlet flagged = 0;\nfor (const t of d.tokens || []) {\n  const b = count('bundle', t.address), s = count('sandwich', t.address), sn = count('sniper', t.address), w = count('whale', t.address), z = count('zero_value_transfer', t.address);\n  flagged += b + s + sn;\n  lines.push(`${t.symbol} (${t.label})  ${t.address}`);\n  lines.push(`  Last 24h: ${t.trades_period} trades (${t.buys_period} buys, ${t.sells_period} sells) by ${t.traders_period} wallets`);\n  lines.push(`  All time: ${t.trades_total} trades by ${t.traders_total} wallets`);\n  lines.push(`  Flagged in last 24h: ${sn} sniper buys, ${b} bundles, ${s} sandwiches, ${w} whale trades, ${z} zero-value transfers`);\n  lines.push(`  All time: ${t.snipers} sniper wallets, ${t.fresh_wallet_buyers} buyers with wallets under 24h old`);\n  for (const f of t.top_funders || []) lines.push(`  Funding cluster: ${f.wallets} buyer wallets were first funded by ${short(f.funder)}  ${scan(f.funder)}`);\n  lines.push('');\n}\nconst priority = ['copycat', 'sandwich', 'sniper', 'bundle', 'whale', 'zero_value_transfer', 'first_trade'];\nconst notable = [];\nfor (const p of priority) notable.push(...ev.filter(e => e.type === p).slice(0, p === 'whale' ? 5 : 8));\nif (notable.length) {\n  lines.push('NOTABLE (newest examples, max 8 per type)');\n  for (const e of notable) {\n    const x = e.detail || {};\n    let msg = '';\n    if (e.type === 'copycat') msg = `Copycat token ${x.symbol} \"${x.name}\" ${x.url || ''}`;\n    else if (e.type === 'sandwich') msg = `Sandwich: ${short(x.attacker)} bought before and sold after ${short(x.victim)} in block ${x.block}  https://basescan.org/tx/${e.tx}`;\n    else if (e.type === 'sniper') msg = `Sniper: ${short(e.wallet)} bought ${x.blocks_after_deploy} blocks after deploy, paid ${x.paid} ETH  ${scan(e.wallet)}`;\n    else if (e.type === 'bundle') msg = `Bundle: ${(x.wallets || []).length} wallets bought back-to-back in block ${x.block}, each paying about ${(x.paid_each || [])[0]} ETH`;\n    else if (e.type === 'whale') msg = `Whale ${x.side}: ${short(e.wallet)} moved ${Number(x.amount).toLocaleString()} tokens for ${x.paid} ETH`;\n    else if (e.type === 'zero_value_transfer') msg = `Zero-value transfer to ${short(e.wallet)} from ${short(x.from)} (address poisoning pattern)  https://basescan.org/tx/${e.tx}`;\n    else msg = `${e.type} ${short(e.wallet)}`;\n    lines.push('  ' + msg);\n  }\n  lines.push('');\n}\nconst cc = d.copycats || [];\nif (cc.length) { lines.push('NEW COPYCATS'); for (const c of cc) lines.push(`  ${c.symbol} \"${c.name}\" ${c.address} ${c.url || ''}`); lines.push(''); }\nlines.push('Raw data: Supabase project \"Deep research\", schema flag.');\nconst total = (d.tokens || []).reduce((a, t) => a + Number(t.trades_period || 0), 0);\nreturn [{ json: { subject: `$FLAG tracker daily: ${total} trades, ${flagged} bot patterns, ${cc.length} new copycats`, body: lines.join('\\n') } }];"
+        "jsCode": "const d = $input.first().json;\nconst ev = d.events || [];\nconst count = (type, token) => ev.filter(e => e.type === type && (!token || e.token === token)).length;\nconst short = a => a ? a.slice(0, 6) + '...' + a.slice(-4) : '';\nconst scan = a => 'https://basescan.org/address/' + a;\nconst lines = [];\nlet flagged = 0;\nfor (const t of d.tokens || []) {\n  const b = count('bundle', t.address), s = count('sandwich', t.address), sn = count('sniper', t.address), w = count('whale', t.address), z = count('zero_value_transfer', t.address);\n  flagged += b + s + sn;\n  lines.push(`${t.symbol} (${t.label})  ${t.address}`);\n  lines.push(`  Last 24h: ${t.trades_period} trades (${t.buys_period} buys, ${t.sells_period} sells) by ${t.traders_period} wallets`);\n  lines.push(`  All time: ${t.trades_total} trades by ${t.traders_total} wallets`);\n  lines.push(`  Flagged in last 24h: ${sn} sniper buys, ${b} bundles, ${s} sandwiches, ${w} whale trades, ${z} zero-value transfers`);\n  lines.push(`  All time: ${t.snipers} sniper wallets, ${t.fresh_wallet_buyers} buyers with wallets under 24h old`);\n  for (const f of t.top_funders || []) lines.push(`  Funding cluster: ${f.wallets} buyer wallets were first funded by ${short(f.funder)}  ${scan(f.funder)}`);\n  lines.push('');\n}\nconst priority = ['scam_report', 'copycat', 'sandwich', 'sniper', 'bundle', 'whale', 'zero_value_transfer', 'first_trade'];\nconst notable = [];\nfor (const p of priority) notable.push(...ev.filter(e => e.type === p).slice(0, p === 'whale' ? 5 : 8));\nif (notable.length) {\n  lines.push('NOTABLE (newest examples, max 8 per type)');\n  for (const e of notable) {\n    const x = e.detail || {};\n    let msg = '';\n    if (e.type === 'copycat') msg = `Copycat token ${x.symbol} \"${x.name}\" ${x.url || ''}`;\n    else if (e.type === 'sandwich') msg = `Sandwich: ${short(x.attacker)} bought before and sold after ${short(x.victim)} in block ${x.block}  https://basescan.org/tx/${e.tx}`;\n    else if (e.type === 'sniper') msg = `Sniper: ${short(e.wallet)} bought ${x.blocks_after_deploy} blocks after deploy, paid ${x.paid} ETH  ${scan(e.wallet)}`;\n    else if (e.type === 'bundle') msg = `Bundle: ${(x.wallets || []).length} wallets bought back-to-back in block ${x.block}, each paying about ${(x.paid_each || [])[0]} ETH`;\n    else if (e.type === 'whale') msg = `Whale ${x.side}: ${short(e.wallet)} moved ${Number(x.amount).toLocaleString()} tokens for ${x.paid} ETH`;\n    else if (e.type === 'zero_value_transfer') msg = `Zero-value transfer to ${short(e.wallet)} from ${short(x.from)} (address poisoning pattern)  https://basescan.org/tx/${e.tx}`;\n    else if (e.type === 'scam_report') msg = `Scam inbox: \"${x.subject}\" from ${x.from}. Links: ${(x.links || []).join(' ') || 'none'}. Addresses: ${[...(x.evm_addresses || []), ...(x.btc_addresses || [])].join(' ') || 'none'}`;\n    else msg = `${e.type} ${short(e.wallet)}`;\n    lines.push('  ' + msg);\n  }\n  lines.push('');\n}\nconst cc = d.copycats || [];\nif (cc.length) { lines.push('NEW COPYCATS'); for (const c of cc) lines.push(`  ${c.symbol} \"${c.name}\" ${c.address} ${c.url || ''}`); lines.push(''); }\nlines.push('Raw data: Supabase project \"Deep research\", schema flag.');\nconst total = (d.tokens || []).reduce((a, t) => a + Number(t.trades_period || 0), 0);\nreturn [{ json: { subject: `$FLAG tracker daily: ${total} trades, ${flagged} bot patterns, ${cc.length} new copycats`, body: lines.join('\\n') } }];"
       },
       "id": "f1a9c7e2-4444-4d4d-9d04-8c4d00000004",
       "name": "Build Email",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [480, 100]
+      "position": [
+        480,
+        100
+      ]
     },
     {
       "parameters": {
@@ -54,23 +83,76 @@
         "subject": "={{ $json.subject }}",
         "emailType": "text",
         "message": "={{ $json.body }}",
-        "options": { "appendAttribution": false }
+        "options": {
+          "appendAttribution": false
+        }
       },
       "id": "f1a9c7e2-4444-4d4d-9d04-8c4d00000005",
       "name": "Email David",
       "type": "n8n-nodes-base.gmail",
       "typeVersion": 2.1,
-      "position": [720, 100],
+      "position": [
+        720,
+        100
+      ],
       "webhookId": "flag-tracker-digest-gmail",
-      "credentials": { "gmailOAuth2": { "id": "GMAIL_CRED_ID", "name": "Gmail account" } }
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "GMAIL_CRED_ID",
+          "name": "Gmail account"
+        }
+      }
     }
   ],
   "connections": {
-    "Daily 6:41am": { "main": [[ { "node": "Get Digest", "type": "main", "index": 0 } ]] },
-    "Run Now (manual test)": { "main": [[ { "node": "Get Digest", "type": "main", "index": 0 } ]] },
-    "Get Digest": { "main": [[ { "node": "Build Email", "type": "main", "index": 0 } ]] },
-    "Build Email": { "main": [[ { "node": "Email David", "type": "main", "index": 0 } ]] }
+    "Daily 6:41am": {
+      "main": [
+        [
+          {
+            "node": "Get Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Now (manual test)": {
+      "main": [
+        [
+          {
+            "node": "Get Digest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Digest": {
+      "main": [
+        [
+          {
+            "node": "Build Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Email": {
+      "main": [
+        [
+          {
+            "node": "Email David",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
   },
-  "settings": { "executionOrder": "v1", "timezone": "America/Los_Angeles" },
+  "settings": {
+    "executionOrder": "v1",
+    "timezone": "America/Los_Angeles"
+  },
   "active": false
 }

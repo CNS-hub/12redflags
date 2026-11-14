@@ -1,0 +1,77 @@
+{
+  "id": "FlagScamInbox001",
+  "name": "$FLAG Scam Inbox Logger",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [ { "field": "cronExpression", "expression": "*/15 * * * *" } ] } },
+      "id": "b2d3e4f5-6666-4f6f-9f06-ae6f00000001",
+      "name": "Every 15 min",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 0]
+    },
+    {
+      "parameters": {},
+      "id": "b2d3e4f5-6666-4f6f-9f06-ae6f00000002",
+      "name": "Run Now (manual test)",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [0, 200]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 50,
+        "simple": false,
+        "filters": { "q": "(to:scams@12redflags.com OR deliveredto:scams@12redflags.com) newer_than:2d" },
+        "options": {}
+      },
+      "id": "b2d3e4f5-6666-4f6f-9f06-ae6f00000003",
+      "name": "Get Scam Mail",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [240, 100],
+      "alwaysOutputData": true,
+      "webhookId": "flag-scam-inbox-gmail",
+      "credentials": { "gmailOAuth2": { "id": "GMAIL_CRED_ID", "name": "Gmail account" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Pull the evidence out of each forwarded scam: who sent it, links, wallet addresses, handles.\n// Nothing here is clicked or visited; it is only recorded.\nconst events = [];\nfor (const item of $input.all()) {\n  const m = item.json;\n  if (!m || !m.id) continue;\n  const text = [m.subject || '', m.text || '', m.textAsHtml || '', m.html || ''].join('\\n');\n  const uniq = a => [...new Set(a)].slice(0, 25);\n  const links = uniq((text.match(/https?:\\/\\/[^\\s\"'<>)\\]]+/gi) || []).map(u => u.replace(/[.,;]+$/, '')).filter(u => !/google\\.com|gstatic|googleusercontent/i.test(u)));\n  const evm = uniq((text.match(/\\b0x[a-fA-F0-9]{40}\\b/g) || []).map(a => a.toLowerCase()));\n  const btc = uniq(text.match(/\\b(bc1[a-z0-9]{25,62}|[13][a-km-zA-HJ-NP-Z1-9]{25,34})\\b/g) || []);\n  const handles = uniq((text.match(/(?:t\\.me\\/|telegram\\.me\\/)[A-Za-z0-9_]{4,}|(?<![\\w.])@[A-Za-z0-9_]{4,30}\\b/g) || []).filter(h => !/@(gmail|12redflags|cnsplanet|googlemail)/i.test(h)));\n  const fromHdr = (m.from && (m.from.text || (m.from.value || []).map(v => v.address).join(', '))) || '';\n  events.push({\n    token: 'scam-inbox', type: 'scam_report', wallet: fromHdr.slice(0, 200), tx_hash: m.id,\n    detail: { subject: (m.subject || '').slice(0, 300), date: m.date, from: fromHdr.slice(0, 200), links, evm_addresses: evm, btc_addresses: btc, handles,\n      snippet: (m.text || '').replace(/\\s+/g, ' ').slice(0, 500) }\n  });\n}\nif (!events.length) return [];\nreturn [{ json: { events } }];"
+      },
+      "id": "b2d3e4f5-6666-4f6f-9f06-ae6f00000004",
+      "name": "Extract Evidence",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [480, 100]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "YOUR_SUPABASE_URL/rest/v1/rpc/flag_api",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          { "name": "apikey", "value": "YOUR_SUPABASE_PUBLISHABLE_KEY" },
+          { "name": "Authorization", "value": "Bearer YOUR_SUPABASE_PUBLISHABLE_KEY" }
+        ] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ p_secret: 'YOUR_FLAG_API_SECRET', p_action: 'ingest', p_payload: { events: $json.events } }) }}",
+        "options": {}
+      },
+      "id": "b2d3e4f5-6666-4f6f-9f06-ae6f00000005",
+      "name": "Log to Supabase",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [720, 100]
+    }
+  ],
+  "connections": {
+    "Every 15 min": { "main": [[ { "node": "Get Scam Mail", "type": "main", "index": 0 } ]] },
+    "Run Now (manual test)": { "main": [[ { "node": "Get Scam Mail", "type": "main", "index": 0 } ]] },
+    "Get Scam Mail": { "main": [[ { "node": "Extract Evidence", "type": "main", "index": 0 } ]] },
+    "Extract Evidence": { "main": [[ { "node": "Log to Supabase", "type": "main", "index": 0 } ]] }
+  },
+  "settings": { "executionOrder": "v1", "timezone": "America/Los_Angeles" },
+  "active": false
+}
