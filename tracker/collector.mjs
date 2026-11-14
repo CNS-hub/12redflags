@@ -40,7 +40,7 @@ const FRESH_HOURS = 24;           // wallet first funded less than 24 h before i
 const WHALE_PCT = 1;              // one trade moving >= 1% of supply
 const MAX_PROFILES_PER_RUN = 40;  // keeps Alchemy usage inside the free tier
 const MAX_RUNTIME_MS = 50_000;    // cron runs every minute
-const BLOCK_STEP = 5000;
+const BLOCK_STEP = 2000;
 const started = Date.now();
 
 // ---------- helpers ----------
@@ -49,18 +49,24 @@ const hex = (n) => "0x" + n.toString(16);
 const lc = (s) => (s || "").toLowerCase();
 
 async function rpcBatch(calls) {
+  // Alchemy free tier: about 25 receipts per second. Small chunks, pause between, retry on 429.
   const out = [];
-  for (let i = 0; i < calls.length; i += 40) {
-    const chunk = calls.slice(i, i + 40).map((c, j) => ({ jsonrpc: "2.0", id: i + j, method: c[0], params: c[1] }));
+  for (let i = 0; i < calls.length; i += 10) {
+    const chunk = calls.slice(i, i + 10).map((c, j) => ({ jsonrpc: "2.0", id: i + j, method: c[0], params: c[1] }));
     for (let attempt = 0; ; attempt++) {
       const r = await fetch(ALCHEMY_URL, {
         method: "POST",
         headers: { Authorization: "Bearer " + ENV.ALCHEMY_KEY, "content-type": "application/json" },
         body: JSON.stringify(chunk),
       });
-      if (r.status === 429 && attempt < 4) { await sleep(1000 * (attempt + 1)); continue; }
-      const j = await r.json();
-      const arr = Array.isArray(j) ? j : [j];
+      let arr = r.status === 429 ? null : await r.json();
+      if (arr && !Array.isArray(arr)) arr = [arr];
+      const limited = !arr || arr.some((x) => x.error && (x.error.code === 429 || /compute units/i.test(x.error.message || "")));
+      if (limited) {
+        if (attempt >= 6) throw new Error("Alchemy rate limit, giving up for this run");
+        await sleep(1200 * (attempt + 1));
+        continue;
+      }
       arr.sort((a, b) => a.id - b.id);
       for (const x of arr) {
         if (x.error) throw new Error(`${chunk.find((c) => c.id === x.id)?.method}: ${JSON.stringify(x.error)}`);
@@ -68,6 +74,7 @@ async function rpcBatch(calls) {
       }
       break;
     }
+    if (calls.length > 10) await sleep(400);
   }
   return out;
 }
