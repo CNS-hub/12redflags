@@ -11,6 +11,7 @@
 //   node collector.mjs add <token> <poolId> <deployTx> [label]   start watching a token
 //   node collector.mjs recent                list the newest Clanker tokens (to pick a dry-run token)
 //   node collector.mjs copycats              look for fake FLAG / Red Flag tokens (run hourly)
+//   node collector.mjs fees                  log every transfer into the charity wallet (run hourly)
 //
 // Settings come from .env next to this file (never committed):
 //   ALCHEMY_KEY, SUPABASE_URL, SUPABASE_ANON_KEY, FLAG_API_SECRET
@@ -34,6 +35,9 @@ const ALCHEMY_URL = "https://base-mainnet.g.alchemy.com/v2";
 const POOL_MANAGER = "0x498581ff718922c3f8e6a244956af099b2652b2b"; // Uniswap v4 on Base (Clanker v4 pools)
 const SWAP_TOPIC = "0x40e9cecb9f5f1f1c5b9c97dec2917b7ee92e57ba5563708daca94dd84ad7112f";
 const ZERO = "0x0000000000000000000000000000000000000000";
+// Creator fees go here: Covenant House (homeless youth), USDC on Base, confirmed by David Nov 13 2026.
+const CHARITY = "0x49b2f8c20fb228f8730b6ce01c268e1447ad85e4";
+const CHARITY_FROM_BLOCK = 57181613; // start of the ledger; earlier dust there was an address-poisoning attempt
 
 const SNIPER_BLOCKS = 5;          // buys within 5 blocks (~10 s) of deploy
 const FRESH_HOURS = 24;           // wallet first funded less than 24 h before its buy
@@ -342,6 +346,22 @@ async function recent() {
   for (const t of r.data) console.log([t.deployed_at, t.symbol, t.contract_address, t.pool_address, t.tx_hash, t.type, t.pair].join(" | "));
 }
 
+// ---------- fee ledger ----------
+// Every transfer into the charity wallet, logged once. Public proof the fees go where we said.
+async function fees() {
+  const res = await rpc("alchemy_getAssetTransfers", [{
+    toAddress: CHARITY, fromBlock: hex(CHARITY_FROM_BLOCK), category: ["external", "internal", "erc20"],
+    withMetadata: true, excludeZeroValue: false, order: "asc", maxCount: "0x3e8",
+  }]);
+  const events = res.transfers.map((t) => ({
+    token: lc(t.rawContract?.address) || "eth", type: "charity_receipt", wallet: lc(t.from), tx_hash: lc(t.hash),
+    detail: { asset: t.asset, amount: t.value, from: lc(t.from), at: t.metadata?.blockTimestamp,
+      zero_or_dust: !t.value || t.value < 1e-6 },
+  }));
+  if (events.length) await api("ingest", { events });
+  console.log(`${new Date().toISOString()} fee ledger: ${events.length} receipts on record since block ${CHARITY_FROM_BLOCK}`);
+}
+
 // ---------- copycats ----------
 async function copycats() {
   const tokens = await api("tokens");
@@ -375,6 +395,7 @@ try {
   else if (mode === "add") await addToken(lc(args[0]), lc(args[1]), args[2], args[3]);
   else if (mode === "recent") await recent();
   else if (mode === "copycats") await copycats();
+  else if (mode === "fees") await fees();
   else throw new Error("unknown mode " + mode);
 } catch (e) {
   console.error(`${new Date().toISOString()} FATAL ${e.message}`);

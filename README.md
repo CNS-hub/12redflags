@@ -67,7 +67,7 @@ The commit that's live is always at [12redflags.com/version.txt](https://12redfl
 Red Flag Protocol ($FLAG) is a planned token on Base, built to pass my own scanner and launched in public as a teaching tool.
 
 - **Do not buy it.** It is not an investment. Expect it to go to zero.
-- I hold no team allocation and will never earn a cent from it. Creator fees go to a published charity address.
+- I hold no team allocation and will never earn a cent from it. 100% of creator fees go to **Covenant House**, which shelters and supports young people facing homelessness, at `0x49b2f8c20fb228F8730B6cE01C268E1447Ad85E4` on Base. The tracker logs every payment into that address.
 - No token exists yet. The official contract address will be posted at [12redflags.com](https://12redflags.com) and in this README at launch. If it isn't that exact address, it's a scam.
 
 ## Not financial advice

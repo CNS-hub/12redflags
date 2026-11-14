@@ -220,8 +220,8 @@ footer{padding:30px 0;color:var(--dim);font-size:13px;text-align:center}
 <script>
 const CONFIG = {
   contractAddress: "",            // leave empty until launch
-  feeRecipientAddress: "",        // charity or multisig receiving 100% of creator fees
-  feeRecipientName: "",
+  feeRecipientAddress: "0x49b2f8c20fb228F8730B6cE01C268E1447Ad85E4", // Covenant House, confirmed by David Nov 13 2026
+  feeRecipientName: "Covenant House, which shelters and supports young people facing homelessness",
   scannerUrl: "https://cryptoclaritycollective.com/defi-opportunities/",
   bookUrl: "https://learn.cryptoclaritycollective.com/products/the-6-billion-mistake",
   newsletterUrl: "https://cryptoclaritycollective.com/checklist/?utm_source=12redflags&utm_medium=referral&utm_campaign=spot-the-flag",
@@ -452,6 +452,7 @@ const CONFIG = {
       <h3>Where the trading fees go</h3>
       <p>100% of creator fees go to: <b id="feeName"></b></p>
       <div class="addr" style="margin-top:10px"><code id="feeText"></code><button class="copy" data-copy="feeRecipientAddress">Copy</button></div>
+      <div class="links" id="feeLinks"></div>
       <p style="margin-top:10px;color:var(--clean-muted);font-size:14px">The fee recipient is set in the contract at launch, so the money never passes through my wallet. You can watch every transfer on Basescan.</p>
     </div>
 
@@ -785,6 +786,7 @@ const ca=CONFIG.contractAddress,fee=CONFIG.feeRecipientAddress;
 $("caText").textContent=ca||"Not launched yet. No contract exists. Anything claiming to be $FLAG right now is fake.";
 $("feeText").textContent=fee||"To be published before launch.";
 $("feeName").textContent=CONFIG.feeRecipientName||"recipient to be announced before launch";
+if(fee){const a=el("a","Watch every payment on Basescan ↗");a.href="https://basescan.org/address/"+fee+"#tokentxns";a.target="_blank";a.rel="noopener";$("feeLinks").appendChild(a)}
 if(ca)[["Basescan","https://basescan.org/token/"+ca],["DEX Screener","https://dexscreener.com/base/"+ca],["Holders","https://basescan.org/token/"+ca+"#balances"]]
   .forEach(([t,u])=>{const a=el("a",t+" ↗");a.href=u;a.target="_blank";a.rel="noopener";$("caLinks").appendChild(a)});
 document.querySelectorAll(".copy").forEach(b=>{
