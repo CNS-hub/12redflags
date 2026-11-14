@@ -1,0 +1,6 @@
+# /etc/cron.d/flag-tracker  (automation server)
+# Collect new trades every minute; look for copycat tokens hourly.
+SHELL=/bin/sh
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+* * * * * root flock -n /run/flag-tracker.lock node /root/flag-tracker/collector.mjs >> /var/log/flag-tracker.log 2>&1
+17 * * * * root flock -n /run/flag-copycats.lock node /root/flag-tracker/collector.mjs copycats >> /var/log/flag-tracker.log 2>&1

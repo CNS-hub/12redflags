@@ -238,6 +238,30 @@ async function collectToken(tok, latest) {
       }
     }
 
+    // Bundles: 3+ different wallets buying back-to-back in one block with near-identical size.
+    // Usually one operator splitting a buy across wallets to look like real demand.
+    for (const list of byBlock.values()) {
+      const buys = list.filter((t) => t.side === "buy").sort((a, b) => a.tx_index - b.tx_index);
+      let run = [];
+      const flush = () => {
+        const traders = new Set(run.map((t) => t.trader));
+        if (run.length >= 3 && traders.size >= 3) {
+          for (const t of run) t.tags.push("bundle");
+          events.push({ token, type: "bundle", wallet: run[0].trader, tx_hash: run[0].tx_hash,
+            detail: { block: run[0].block, wallets: [...traders], paid_each: run.map((t) => t.paired_amount) } });
+        }
+        run = [];
+      };
+      for (const t of buys) {
+        const prev = run[run.length - 1];
+        const close = prev && t.tx_index - prev.tx_index <= 2 &&
+          Math.abs(Number(t.paired_amount) - Number(prev.paired_amount)) <= 0.05 * Math.max(Number(prev.paired_amount), 1e-12);
+        if (prev && !close) flush();
+        run.push(t);
+      }
+      flush();
+    }
+
     // Profile new buyers: how old is the wallet, who funded it.
     const buyers = [...new Set(trades.filter((t) => t.side === "buy").map((t) => t.trader))];
     let wallets = [];
